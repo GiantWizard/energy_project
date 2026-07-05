@@ -1,5 +1,5 @@
-"""Scan single ERCOT days for price volatility to find a better week to analyze
-than the calm 2026-06-28 to 2026-07-04 week already pulled."""
+# Scans single ERCOT days for price volatility to find a better week to
+# analyze than the calm 2026-06-28 to 2026-07-04 week already pulled.
 import gridstatus
 import pandas as pd
 

@@ -1,18 +1,14 @@
-"""
-Fetch ERCOT's annual RTM settlement point price archive (report type 13061,
-"Historical RTM Load Zone and Hub Prices"), to scan a much longer window
-than the ~9-10 day rolling document list that gridstatus.get_spp() draws
-from.
-
-Note: gridstatus.Ercot.get_rtm_spp(year) hits a real bug under pandas 2.3.x
-(gridstatus's internal parse_doc calls doc["HourBeginning"].astype
-("timedelta64[h]"), which pandas 2.3 rejects -- only s/ms/us/ns units are
-allowed for astype on a timedelta64 column now). Confirmed by reproducing
-the exact traceback. Rather than patch the installed library, this script
-downloads the same underlying archive file gridstatus would and reimplements
-the same interval-construction logic using pd.to_timedelta(..., unit="h"),
-which is pandas-2.3-compatible and produces the same result.
-"""
+# Fetches ERCOT's annual RTM settlement point price archive (report type
+# 13061, "Historical RTM Load Zone and Hub Prices") to scan a much longer
+# window than the 9-10 day rolling document list gridstatus.get_spp() draws
+# from.
+#
+# gridstatus.Ercot.get_rtm_spp(year) hits a real bug under pandas 2.3.x:
+# its internal parse_doc calls doc["HourBeginning"].astype("timedelta64[h]"),
+# which pandas 2.3 rejects (only s/ms/us/ns units are allowed now). Rather
+# than patch the installed library, this script downloads the same
+# underlying archive file and reimplements the same interval-construction
+# logic with pd.to_timedelta(..., unit="h"), which pandas 2.3 accepts.
 import gridstatus
 from gridstatus import utils
 import pandas as pd
@@ -53,7 +49,7 @@ interval_length = pd.Timedelta(minutes=15)
 df["HourBeginning"] = df["HourEnding"] - 1
 df["Interval Start"] = (
     pd.to_datetime(df["DeliveryDate"])
-    + pd.to_timedelta(df["HourBeginning"], unit="h")  # pandas-2.3-safe replacement
+    + pd.to_timedelta(df["HourBeginning"], unit="h")  # pandas 2.3 safe replacement
     + ((df["DeliveryInterval"] - 1) * interval_length)
 )
 df["Interval Start"] = df["Interval Start"].dt.tz_localize(

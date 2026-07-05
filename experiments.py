@@ -1,37 +1,30 @@
-"""
-Energy-markets bridge project — round 3 rework.
-
-Prior honest finding: on a calm week (2026-06-28 to 2026-07-04), a next-15-min
-RandomForest forecast lost to a naive random-walk baseline, and the three
-Skyblock-analogue features (momentum_4, volatility_8, spread_1) barely
-registered (~8% combined feature importance vs lag_1 at 83%). The only
-result that held up was IsolationForest anomaly detection using those
-features alone.
-
-This script tests four genuinely different angles to see if a better result
-is actually achievable, not just re-argued:
-
-  1. Exogenous data: add ERCOT system-wide load (demand level + demand
-     momentum) as features alongside the price-based ones. (Fuel-mix /
-     renewable-penetration was also attempted but is NOT available
-     historically via gridstatus for ERCOT -- see fetch_load.py docstring
-     and RESULTS.md for the confirmed limitation.)
-  2. Reframe the forecasting target as next-interval price DIRECTION
-     (up/down) instead of exact price, compared against a naive
-     "same direction as last move" baseline.
-  3. Pull a genuinely more volatile period. Using ERCOT's annual historical
-     RTM archive (see fetch_historical_archive.py), scanned all of 2026
-     year-to-date and found 2026-01-24 to 2026-01-30 as the most volatile
-     week (max $1170.38/MWh vs the calm week's max of $66.13; std $105.57
-     vs $7.87) -- a real winter cold-snap scarcity-pricing event.
-  4. Deepen the anomaly-detection angle: check whether IsolationForest's
-     flagged intervals on the volatile week correspond to the actual real
-     price spike, and separately research what ERCOT event this period
-     corresponds to.
-
-Everything below is run for real, on both the calm week and the volatile
-week, and reported honestly regardless of outcome.
-"""
+# Round 3 rework of the energy-markets bridge project.
+#
+# Prior finding: on a calm week (2026-06-28 to 2026-07-04), a next-15-min
+# RandomForest forecast lost to a naive random-walk baseline, and the three
+# Skyblock-analogue features (momentum_4, volatility_8, spread_1) barely
+# registered (about 8% combined feature importance vs lag_1 at 83%). The
+# only result that held up was IsolationForest anomaly detection using
+# those features alone.
+#
+# This script tests four different angles to see if a better result is
+# actually achievable:
+#   1. Exogenous data: add ERCOT system-wide load (demand level and demand
+#      momentum) as features alongside the price-based ones. Fuel-mix /
+#      renewable-penetration data was also attempted but isn't available
+#      historically through gridstatus for ERCOT; see fetch_load.py and
+#      RESULTS.md for that limitation.
+#   2. Reframe the forecasting target as next-interval price direction
+#      (up/down) instead of exact price, compared against a naive "same
+#      direction as last move" baseline.
+#   3. Pull a genuinely more volatile period. Using ERCOT's annual
+#      historical RTM archive (fetch_historical_archive.py), scanned all
+#      of 2026 year-to-date and found 2026-01-24 to 2026-01-30 as the most
+#      volatile week (max $1170.38/MWh vs the calm week's $66.13, std
+#      $105.57 vs $7.87), a real winter cold-snap scarcity-pricing event.
+#   4. Deepen the anomaly-detection angle: check whether IsolationForest's
+#      flagged intervals on the volatile week correspond to a real price
+#      spike, and research what ERCOT event this period corresponds to.
 import pandas as pd
 import numpy as np
 import matplotlib
@@ -177,9 +170,7 @@ def run_anomaly_detection(df, label, contamination=0.05):
     return anomaly_df, flagged
 
 
-# ============================================================================
 # Load data
-# ============================================================================
 calm_price = load_price("raw_hb_houston_rtm_spp.csv")
 volatile_price = load_price("raw_hb_houston_volatile_week.csv")
 calm_load = load_demand("raw_load_calm_week.csv", "Load")
@@ -198,9 +189,7 @@ log("VOLATILE WEEK STATS (2026-01-24 to 2026-01-30, ERCOT winter scarcity event)
 log(f"  price: min={volatile_price['price'].min():.2f} max={volatile_price['price'].max():.2f} std={volatile_price['price'].std():.2f}")
 log("=" * 70)
 
-# ============================================================================
 # Experiment 1: exogenous load data, price-only vs price+load, both weeks
-# ============================================================================
 log("\n" + "=" * 70)
 log("EXPERIMENT 1: exogenous load (demand) features")
 log("=" * 70)
@@ -210,9 +199,7 @@ r_calm_t1_withload = run_forecast(calm_feat, price_plus_load_cols, 1, "Calm week
 r_vol_t1_priceonly = run_forecast(volatile_feat, price_only_cols, 1, "Volatile week, t+1, price-only")
 r_vol_t1_withload = run_forecast(volatile_feat, price_plus_load_cols, 1, "Volatile week, t+1, price+load")
 
-# ============================================================================
 # Experiment 2: direction classification instead of point forecast
-# ============================================================================
 log("\n" + "=" * 70)
 log("EXPERIMENT 2: next-interval direction classification (up/down)")
 log("=" * 70)
@@ -220,9 +207,7 @@ log("=" * 70)
 d_calm = run_direction_classification(calm_feat, price_only_cols, "Calm week, direction classification")
 d_vol = run_direction_classification(volatile_feat, price_only_cols, "Volatile week, direction classification")
 
-# ============================================================================
-# Experiment 3: volatile week already loaded above; also re-run t+4 for it
-# ============================================================================
+# Experiment 3: volatile week already loaded above, also re-run t+4 for it
 log("\n" + "=" * 70)
 log("EXPERIMENT 3: volatile-week forecast at both horizons")
 log("=" * 70)
@@ -230,9 +215,7 @@ log("=" * 70)
 r_vol_t4_priceonly = run_forecast(volatile_feat, price_only_cols, 4, "Volatile week, t+4 (1hr ahead), price-only")
 r_vol_t4_withload = run_forecast(volatile_feat, price_plus_load_cols, 4, "Volatile week, t+4 (1hr ahead), price+load")
 
-# ============================================================================
 # Experiment 4: anomaly detection on both weeks, deepened
-# ============================================================================
 log("\n" + "=" * 70)
 log("EXPERIMENT 4: anomaly detection, deepened")
 log("=" * 70)
@@ -240,9 +223,7 @@ log("=" * 70)
 calm_anomaly_df, calm_flagged = run_anomaly_detection(calm_feat, "calm week")
 vol_anomaly_df, vol_flagged = run_anomaly_detection(volatile_feat, "volatile week")
 
-# ============================================================================
 # Plots
-# ============================================================================
 fig, axes = plt.subplots(4, 1, figsize=(13, 17))
 
 axes[0].plot(calm_price["ts"], calm_price["price"], label="Calm week price", color="steelblue")

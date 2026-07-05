@@ -1,34 +1,21 @@
-"""
-Energy-markets bridge project, weekend one (reworked after verification pass).
-
-Original weekend-one result: a next-15-min-interval RandomForest forecast did
-NOT beat a naive random-walk baseline (MAE 2.232 vs 2.002), and the three
-Skyblock-analogue features contributed ~8% combined feature importance vs.
-lag_1 alone at 83%. Rather than reframe that away, this script actually tests
-two different angles the verification pass suggested, to see if either one
-gives the engineered features real work to do:
-
-  1. Longer-horizon forecast (1-hour-ahead, i.e. 4 intervals out) --
-     does the naive lag-1 baseline stay dominant when the target is further
-     from the most recent observation?
-  2. Anomaly/spike detection -- do volatility_8 / spread_1 carry signal for
-     "is this an unusual interval," a different question than point
-     forecasting, using an unsupervised IsolationForest on the engineered
-     features (not lag prices, so lag_1 can't just dominate by definition)?
-
-All three experiments (original next-interval forecast, 1-hour-ahead forecast,
-anomaly detection) are run and reported. Whichever actually shows the
-Skyblock-style features doing real work is the one RESULTS.md leads with; if
-none do, RESULTS.md says so plainly.
-
-Feature <-> Skyblock-bazaar mapping:
-  - momentum_4  : % change over the last 4 intervals (1 hour)
-                  ~ Skyblock's short-horizon buy/sell price momentum signal.
-  - volatility_8: rolling std-dev of price over the last 8 intervals (2 hours)
-                  ~ Skyblock's rolling volatility feature (choppy/risky price).
-  - spread_1    : abs difference between consecutive interval prices
-                  ~ Skyblock's bid/ask spread proxy (order-to-order gap).
-"""
+# Weekend-one analysis, reworked after the verification pass.
+#
+# The original next-15-min RandomForest forecast did not beat a naive
+# random-walk baseline (MAE 2.232 vs 2.002), and the three Skyblock-analogue
+# features contributed only about 8% combined feature importance vs. lag_1
+# alone at 83%. This script tests two other angles on the same data: a
+# longer forecast horizon (does naive stay dominant further out?) and
+# anomaly detection (do volatility_8 / spread_1 carry signal for flagging
+# unusual intervals, a task where lag_1 isn't in the feature set at all).
+#
+# Feature to Skyblock-bazaar mapping:
+#   momentum_4:   % change over the last 4 intervals (1 hour), analogous to
+#                 Skyblock's short-horizon buy/sell price momentum signal.
+#   volatility_8: rolling std-dev of price over the last 8 intervals
+#                 (2 hours), analogous to Skyblock's rolling volatility
+#                 feature.
+#   spread_1:     absolute difference between consecutive interval prices,
+#                 analogous to Skyblock's bid/ask spread proxy.
 import pandas as pd
 import numpy as np
 import matplotlib
