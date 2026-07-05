@@ -1,0 +1,92 @@
+======================================================================
+CALM WEEK STATS (2026-06-28 to 2026-07-04)
+  price: min=8.89 max=66.13 std=7.87
+VOLATILE WEEK STATS (2026-01-24 to 2026-01-30, ERCOT winter scarcity event)
+  price: min=-6.66 max=1170.38 std=105.57
+======================================================================
+
+======================================================================
+EXPERIMENT 1: exogenous load (demand) features
+======================================================================
+
+[Calm week, t+1, price-only]
+  n_test=133  model_mae=2.232  naive_mae=2.002  beats_naive=False  (delta=-11.5%)
+  model_rmse=3.597  naive_rmse=3.043
+  feature_importances: {'lag_1': 0.8332, 'lag_2': 0.049, 'momentum_4': 0.0406, 'hour': 0.0216, 'volatility_8': 0.0214, 'spread_1': 0.0174, 'lag_4': 0.0169}
+  skyblock_combined_importance=0.0794
+
+[Calm week, t+1, price+load]
+  n_test=133  model_mae=2.155  naive_mae=2.002  beats_naive=False  (delta=-7.7%)
+  model_rmse=3.481  naive_rmse=3.043
+  feature_importances: {'lag_1': 0.8257, 'lag_2': 0.0475, 'momentum_4': 0.0337, 'load': 0.0313, 'volatility_8': 0.0183, 'spread_1': 0.0139, 'lag_4': 0.0121, 'hour': 0.0101, 'load_change_4': 0.0074}
+  skyblock_combined_importance=0.0659
+
+[Volatile week, t+1, price-only]
+  n_test=133  model_mae=7.755  naive_mae=4.443  beats_naive=False  (delta=-74.6%)
+  model_rmse=10.763  naive_rmse=6.691
+  feature_importances: {'lag_1': 0.7951, 'momentum_4': 0.0993, 'lag_2': 0.0324, 'lag_4': 0.0267, 'hour': 0.0204, 'spread_1': 0.0168, 'volatility_8': 0.0093}
+  skyblock_combined_importance=0.1254
+
+[Volatile week, t+1, price+load]
+  n_test=133  model_mae=8.122  naive_mae=4.443  beats_naive=False  (delta=-82.8%)
+  model_rmse=11.116  naive_rmse=6.691
+  feature_importances: {'lag_1': 0.7878, 'momentum_4': 0.0774, 'load_change_4': 0.0448, 'lag_2': 0.029, 'lag_4': 0.018, 'hour': 0.0165, 'spread_1': 0.013, 'volatility_8': 0.0072, 'load': 0.0063}
+  skyblock_combined_importance=0.0976
+
+======================================================================
+EXPERIMENT 2: next-interval direction classification (up/down)
+======================================================================
+
+[Calm week, direction classification]
+  n_test=133  model_acc=0.624  naive_acc=0.586  beats_naive=True
+  feature_importances: {'hour': 0.1924, 'momentum_4': 0.1757, 'lag_4': 0.1521, 'volatility_8': 0.1226, 'lag_1': 0.1213, 'lag_2': 0.1187, 'spread_1': 0.1172}
+
+[Volatile week, direction classification]
+  n_test=133  model_acc=0.579  naive_acc=0.564  beats_naive=True
+  feature_importances: {'momentum_4': 0.1801, 'hour': 0.1746, 'lag_4': 0.1383, 'volatility_8': 0.1377, 'spread_1': 0.1256, 'lag_2': 0.1221, 'lag_1': 0.1216}
+
+======================================================================
+EXPERIMENT 3: volatile-week forecast at both horizons
+======================================================================
+
+[Volatile week, t+4 (1hr ahead), price-only]
+  n_test=133  model_mae=15.929  naive_mae=9.321  beats_naive=False  (delta=-70.9%)
+  model_rmse=25.824  naive_rmse=14.829
+  feature_importances: {'lag_1': 0.6479, 'hour': 0.1162, 'momentum_4': 0.073, 'lag_4': 0.0476, 'volatility_8': 0.0458, 'lag_2': 0.038, 'spread_1': 0.0316}
+  skyblock_combined_importance=0.1503
+
+[Volatile week, t+4 (1hr ahead), price+load]
+  n_test=133  model_mae=18.666  naive_mae=9.321  beats_naive=False  (delta=-100.3%)
+  model_rmse=28.870  naive_rmse=14.829
+  feature_importances: {'lag_1': 0.5902, 'load_change_4': 0.1293, 'hour': 0.1118, 'load': 0.0395, 'lag_4': 0.0312, 'momentum_4': 0.0306, 'lag_2': 0.025, 'volatility_8': 0.0215, 'spread_1': 0.0209}
+  skyblock_combined_importance=0.0730
+
+======================================================================
+EXPERIMENT 4: anomaly detection, deepened
+======================================================================
+
+[Anomaly detection: calm week]
+  flagged 34 / 665 (5.1%)
+  median spread_1   normal=0.740  flagged=5.565
+  median volatility_8 normal=1.740  flagged=7.379
+  price at single most extreme interval overall: {'ts': Timestamp('2026-07-01 22:00:00-0500', tz='UTC-05:00'), 'price': 66.13}
+  top 5 flagged intervals:
+    ts=2026-07-01 22:00:00-05:00 price=66.13 spread_1=18.01 volatility_8=7.48
+    ts=2026-07-01 23:15:00-05:00 price=29.40 spread_1=0.92 volatility_8=12.76
+    ts=2026-07-01 23:00:00-05:00 price=30.32 spread_1=3.78 volatility_8=11.24
+    ts=2026-07-01 23:30:00-05:00 price=28.94 spread_1=0.46 volatility_8=13.38
+    ts=2026-07-01 22:15:00-05:00 price=52.29 spread_1=13.84 volatility_8=7.11
+
+[Anomaly detection: volatile week]
+  flagged 34 / 665 (5.1%)
+  median spread_1   normal=3.680  flagged=61.065
+  median volatility_8 normal=8.438  flagged=194.285
+  price at single most extreme interval overall: {'ts': Timestamp('2026-01-28 07:00:00-0600', tz='UTC-06:00'), 'price': 1170.38}
+  top 5 flagged intervals:
+    ts=2026-01-25 18:00:00-06:00 price=834.02 spread_1=505.40 volatility_8=221.18
+    ts=2026-01-28 07:15:00-06:00 price=637.28 spread_1=533.10 volatility_8=258.06
+    ts=2026-01-26 17:15:00-06:00 price=145.06 spread_1=48.68 volatility_8=56.96
+    ts=2026-01-25 18:15:00-06:00 price=339.09 spread_1=494.93 volatility_8=213.66
+    ts=2026-01-28 07:00:00-06:00 price=1170.38 spread_1=314.92 volatility_8=277.58
+
+Saved experiments_plot.png

@@ -1,0 +1,58 @@
+
+[Forecast: next-15-min interval (t+1)]
+test_start=2026-07-03 14:30:00-05:00
+test_end=2026-07-04 23:30:00-05:00
+n_test=133
+model_mae=2.2319
+model_rmse=3.5968
+naive_mae=2.0016
+naive_rmse=3.0430
+model_beats_naive=False
+skyblock_feature_importance_combined=0.0794
+feature_importances:
+  lag_1=0.8332
+  lag_2=0.0490
+  momentum_4=0.0406
+  hour=0.0216
+  volatility_8=0.0214
+  spread_1=0.0174
+  lag_4=0.0169
+
+[Forecast: 1-hour-ahead (t+4)]
+test_start=2026-07-03 13:45:00-05:00
+test_end=2026-07-04 22:45:00-05:00
+n_test=133
+model_mae=3.3160
+model_rmse=5.3254
+naive_mae=3.7579
+naive_rmse=5.2852
+model_beats_naive=True
+skyblock_feature_importance_combined=0.1274
+feature_importances:
+  lag_1=0.4728
+  hour=0.3155
+  momentum_4=0.0581
+  lag_2=0.0528
+  volatility_8=0.0382
+  lag_4=0.0315
+  spread_1=0.0311
+
+[Anomaly detection: IsolationForest on momentum_4, volatility_8, spread_1]
+n_total=665
+n_flagged=34
+pct_flagged=5.11
+median_spread_1_normal=0.7400
+median_spread_1_flagged=5.5650
+median_volatility_8_normal=1.7401
+median_volatility_8_flagged=7.3791
+top_10_flagged_intervals:
+  ts=2026-07-01 22:00:00-05:00 price=66.13 momentum_4=0.4339 volatility_8=7.479 spread_1=18.010 score=-0.1744
+  ts=2026-07-01 23:15:00-05:00 price=29.40 momentum_4=-0.4378 volatility_8=12.758 spread_1=0.920 score=-0.1541
+  ts=2026-07-01 23:00:00-05:00 price=30.32 momentum_4=-0.5415 volatility_8=11.240 spread_1=3.780 score=-0.1438
+  ts=2026-07-01 23:30:00-05:00 price=28.94 momentum_4=-0.3270 volatility_8=13.379 spread_1=0.460 score=-0.1397
+  ts=2026-07-01 22:15:00-05:00 price=52.29 momentum_4=0.0770 volatility_8=7.114 spread_1=13.840 score=-0.1348
+  ts=2026-07-01 22:45:00-05:00 price=34.10 momentum_4=-0.2914 volatility_8=9.111 spread_1=8.900 score=-0.1257
+  ts=2026-07-04 19:00:00-05:00 price=45.68 momentum_4=0.5773 volatility_8=8.597 spread_1=7.010 score=-0.1229
+  ts=2026-07-04 21:30:00-05:00 price=42.38 momentum_4=-0.1475 volatility_8=5.924 spread_1=11.690 score=-0.1183
+  ts=2026-07-04 18:45:00-05:00 price=52.69 momentum_4=0.4459 volatility_8=8.629 spread_1=8.520 score=-0.1171
+  ts=2026-07-01 23:45:00-05:00 price=27.27 momentum_4=-0.2003 volatility_8=13.933 spread_1=1.670 score=-0.1085
