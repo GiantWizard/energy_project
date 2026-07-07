@@ -17,7 +17,6 @@
 # zone plus an "ERCOT" column for the system-wide total, which is the one
 # used downstream as the demand feature.
 import gridstatus
-import pandas as pd
 
 iso = gridstatus.Ercot()
 

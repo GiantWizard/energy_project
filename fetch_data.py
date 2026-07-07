@@ -6,7 +6,6 @@
 # showed negative SPPs from renewable curtailment, so HB_HOUSTON (no negative
 # prices, ERCOT's major urban load-center hub) was the cleaner first pass.
 import gridstatus
-import pandas as pd
 
 iso = gridstatus.Ercot()
 

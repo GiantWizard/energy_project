@@ -21,7 +21,8 @@
 #      historical RTM archive (fetch_historical_archive.py), scanned all
 #      of 2026 year-to-date and found 2026-01-24 to 2026-01-30 as the most
 #      volatile week (max $1170.38/MWh vs the calm week's $66.13, std
-#      $105.57 vs $7.87), a real winter cold-snap scarcity-pricing event.
+#      $105.57 vs $7.87), a real winter cold snap where prices spiked
+#      because supply couldn't keep up with demand.
 #   4. Deepen the anomaly-detection angle: check whether IsolationForest's
 #      flagged intervals on the volatile week correspond to a real price
 #      spike, and research what ERCOT event this period corresponds to.
@@ -31,7 +32,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier, IsolationForest
-from sklearn.metrics import mean_absolute_error, mean_squared_error, accuracy_score, precision_score
+from sklearn.metrics import mean_absolute_error, mean_squared_error, accuracy_score
 
 SKYBLOCK_FEATURES = ["momentum_4", "volatility_8", "spread_1"]
 results_lines = []

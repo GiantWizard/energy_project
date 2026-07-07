@@ -1,38 +1,41 @@
 # Energy Markets Bridge
 
-A pipeline that pulls ERCOT real-time electricity prices and tests whether
-market-microstructure-style features borrowed conceptually from a Hypixel
-Skyblock Bazaar market-analysis project
-([GiantWizard/wiz](https://github.com/GiantWizard/wiz)) carry real signal.
-It runs several different angles (point forecasting at two horizons,
-exogenous demand data, direction classification, and anomaly detection, on
-both a calm week and a real high-volatility winter event) instead of
-reworking one experiment's framing until it sounds better.
+A pipeline that pulls real ERCOT electricity prices and tests whether the
+features I built for a Hypixel Skyblock Bazaar price project
+([GiantWizard/wiz](https://github.com/GiantWizard/wiz)) actually help
+predict anything in a real market. It runs through several different
+experiments (short-term forecasting at two time horizons, adding in real
+demand data, predicting direction instead of exact price, and flagging
+unusual price spikes, all tested against both a calm week and an actual
+volatile week) instead of running one experiment and reframing the writeup
+until it sounds better.
 
 ## Why this project
 
-The Skyblock bazaar pipeline treats in-game item prices as a high-frequency
-order-book-like series and builds features around short-horizon momentum,
-volatility, and spread to understand price formation. Electricity real-time
-markets (ERCOT settlement point prices) are a real-world analogue: a
-continuously updating price series shaped by supply/demand imbalance,
-published every 15 minutes. This project reuses that feature-engineering
-thinking, not the code, applied to real grid data, as a bridge toward
-Cornell CBE's Energy Economics and Engineering concentration (grid
-economics, price formation).
+The Skyblock bazaar project treats in-game item prices like a fast-moving
+market and builds features around short-term momentum, how choppy the
+price has been, and the gap between consecutive prices, to try to
+understand how prices move. ERCOT's real-time electricity prices behave in
+a similar way: a price that updates every 15 minutes based on how much
+electricity people are using versus how much is available. This project
+takes that same feature-building approach, not the actual code, and
+applies it to real grid data, as a bridge toward Cornell CBE's Energy
+Economics and Engineering concentration, which deals with exactly this
+kind of grid economics and price formation.
 
-Headline result (full story in `RESULTS.md`): a naive next-interval
-forecast (predict price = last observed price) beats a RandomForest using
-the Skyblock-style features at 15-minute resolution, on both a calm week
-and a genuinely volatile winter scarcity-pricing week. ERCOT RTM prices are
-dominated by the most recent observation regardless of how volatile the
-period is. Two angles do show the features doing real work: direction
-classification (predicting up/down instead of the exact price beats a
-naive "same as last move" baseline on both weeks) and anomaly detection
-(IsolationForest on momentum/volatility/spread alone flags intervals with
-16-23x higher volatility on the volatile week, and those flagged intervals
-line up with a real, dated ERCOT Weather Watch event from 2026-01-24 to
-01-27).
+Headline result (the full story is in `RESULTS.md`): a naive forecast that
+just guesses the next price will equal the last price beats a
+RandomForest model built on the Skyblock-style features, at 15-minute
+resolution, on both a calm week and an actual volatile winter week when
+prices spiked because supply couldn't keep up with demand. ERCOT's
+real-time prices are dominated by whatever the price just did, no matter
+how volatile things get. Two experiments do show the features doing real
+work. Predicting the direction of the next move (up or down) beats a
+naive baseline on both weeks, and flagging anomalies with an
+IsolationForest model trained only on momentum, volatility, and spread
+catches intervals with 16 to 23 times higher volatility during the
+volatile week, and those flagged intervals line up with a real, dated
+ERCOT Weather Watch alert from 2026-01-24 to 01-27.
 
 ## What's here
 
@@ -44,15 +47,15 @@ line up with a real, dated ERCOT Weather Watch event from 2026-01-24 to
   `get_rtm_spp`) to scan the full year for the most volatile week, saving
   `raw_hb_houston_volatile_week.csv` and the full-year archive.
 - `scan_volatility.py`: the scan script that discovered ERCOT's live
-  document list only retains about 9-10 days of history, a real constraint
+  document list only keeps about 9-10 days of history, a real constraint
   documented in `RESULTS.md`.
 - `fetch_load.py`: pulls ERCOT system-wide demand (load) for both weeks,
-  as the exogenous feature for Experiment 1.
-- `analysis.py`: the prior round's script, three experiments (t+1 forecast,
-  t+4 forecast, anomaly detection) on the calm week only.
-- `experiments.py`: this round's comprehensive script, all four new
-  experiments (exogenous load, direction classification, volatile-week
-  forecasting, deepened anomaly detection) across both weeks. Saves
+  used as the extra feature for Experiment 1.
+- `analysis.py`: the prior round's script, three experiments (t+1
+  forecast, t+4 forecast, anomaly detection) on the calm week only.
+- `experiments.py`: this round's script, running all four new experiments
+  (exogenous load, direction classification, volatile-week forecasting,
+  deepened anomaly detection) across both weeks. Saves
   `experiments_plot.png` and `experiments_results.txt`.
 - `RESULTS.md`: the full, current results writeup, including the two prior
   rounds' history, all four new experiments, and an honest final verdict.
