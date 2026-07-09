@@ -1,4 +1,5 @@
-# Weekend-one analysis, reworked after the verification pass.
+# Forecasting and anomaly-detection experiments on the calm week of
+# ERCOT price data, run after cross-checking the original results.
 #
 # The original next-15-min RandomForest forecast did not beat a naive
 # random-walk baseline (MAE 2.232 vs 2.002), and the three Skyblock-analogue

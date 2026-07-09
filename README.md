@@ -51,14 +51,14 @@ ERCOT Weather Watch alert from 2026-01-24 to 01-27.
   documented in `RESULTS.md`.
 - `fetch_load.py`: pulls ERCOT system-wide demand (load) for both weeks,
   used as the extra feature for Experiment 1.
-- `analysis.py`: the prior round's script, three experiments (t+1
+- `analysis.py`: the earlier script, three experiments (t+1
   forecast, t+4 forecast, anomaly detection) on the calm week only.
-- `experiments.py`: this round's script, running all four new experiments
-  (exogenous load, direction classification, volatile-week forecasting,
-  deepened anomaly detection) across both weeks. Saves
+- `experiments.py`: the extended script, running all four additional
+  experiments (exogenous load, direction classification, volatile-week
+  forecasting, deepened anomaly detection) across both weeks. Saves
   `experiments_plot.png` and `experiments_results.txt`.
-- `RESULTS.md`: the full, current results writeup, including the two prior
-  rounds' history, all four new experiments, and an honest final verdict.
+- `RESULTS.md`: the full, current results writeup, including the earlier
+  history, all four additional experiments, and an honest final verdict.
 
 ## Setup
 

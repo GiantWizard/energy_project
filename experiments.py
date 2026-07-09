@@ -1,4 +1,4 @@
-# Round 3 rework of the energy-markets bridge project.
+# Extended experiments for the energy-markets bridge project.
 #
 # Prior finding: on a calm week (2026-06-28 to 2026-07-04), a next-15-min
 # RandomForest forecast lost to a naive random-walk baseline, and the three

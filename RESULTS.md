@@ -2,16 +2,16 @@
 
 ## Revision history
 
-1. Start: built a RandomForest model to forecast the price 15 minutes ahead, using a calm week of data (2026-06-28 to 07-04). It lost to a naive baseline that just predicts the last price again (MAE 2.232 vs 2.002), and the three features borrowed from the Skyblock project barely mattered: together they made up only about 8% of the model's feature importance, while `lag_1` (just the last observed price) made up 83% on its own.
-2. First rework: instead of just rewriting the summary to sound better, tried two new angles. Forecasting an hour ahead instead of 15 minutes did a little better, though that was driven mostly by the `hour` feature. Anomaly detection worked cleanly: the intervals it flagged as unusual showed 4 to 7 times higher spread and volatility than the normal ones.
-3. This rework: tried four different angles to see if a better result was possible at all. Added real demand data, switched from predicting the exact price to predicting direction, tested against an actual volatile week instead of another calm one, and checked the anomaly detection results against a real, named ERCOT grid event. Two of the four helped, in a modest but real way. The other two did not, and are reported below exactly as they came out.
+1. Initial approach: built a RandomForest model to forecast the price 15 minutes ahead, using a calm week of data (2026-06-28 to 07-04). It lost to a naive baseline that just predicts the last price again (MAE 2.232 vs 2.002), and the three features borrowed from the Skyblock project barely mattered: together they made up only about 8% of the model's feature importance, while `lag_1` (just the last observed price) made up 83% on its own.
+2. Follow-up analysis: instead of just rewriting the summary to sound better, tried two new angles. Forecasting an hour ahead instead of 15 minutes did a little better, though that was driven mostly by the `hour` feature. Anomaly detection worked cleanly: the intervals it flagged as unusual showed 4 to 7 times higher spread and volatility than the normal ones.
+3. Current results: tried four different angles to see if a better result was possible at all. Added real demand data, switched from predicting the exact price to predicting direction, tested against an actual volatile week instead of another calm one, and checked the anomaly detection results against a real, named ERCOT grid event. Two of the four helped, in a modest but real way. The other two did not, and are reported below exactly as they came out.
 
 ## Data
 
 - ISO / node: ERCOT, `HB_HOUSTON` (Houston Load Zone Trading Hub), real-time market, 15-minute settlement point prices (SPP).
 - Calm week: 2026-06-28 to 2026-07-04, 672 rows, zero gaps. Min $8.89, max $66.13, mean $27.18, std $7.87.
-- Volatile week (new this round): 2026-01-24 to 2026-01-30, 672 rows, zero gaps. Min -$6.66, max $1170.38, mean $106.03, std $105.57, about 13x the calm week's volatility. This was an actual winter cold snap where supply couldn't keep up with demand and prices spiked (see Experiment 4).
-- Demand data (new this round): ERCOT system-wide hourly load, pulled for both weeks. Calm week via `gridstatus.get_load`; volatile week via `gridstatus.get_hourly_load_post_settlements`, since `get_load` only covers a rolling 14-day window and the volatile week is over 5 months in the past. See Setup Friction below.
+- Volatile week (added for this analysis): 2026-01-24 to 2026-01-30, 672 rows, zero gaps. Min -$6.66, max $1170.38, mean $106.03, std $105.57, about 13x the calm week's volatility. This was an actual winter cold snap where supply couldn't keep up with demand and prices spiked (see Experiment 4).
+- Demand data (added for this analysis): ERCOT system-wide hourly load, pulled for both weeks. Calm week via `gridstatus.get_load`; volatile week via `gridstatus.get_hourly_load_post_settlements`, since `get_load` only covers a rolling 14-day window and the volatile week is over 5 months in the past. See Setup Friction below.
 
 ### How the volatile week was found
 
@@ -98,7 +98,7 @@ I checked this against the real world through a live web search rather than just
 
 Updated recommendation: lead with anomaly detection (Experiment 4) as the primary result, with direction classification (Experiment 2) as a solid secondary result. Point forecasting (Experiments 1 and 3) is reported honestly as not working, including the counterintuitive finding that more volatility makes the point-forecast gap bigger instead of smaller. That's a real, defensible, non-obvious finding in its own right, not a null result to bury.
 
-## Setup friction encountered (this round)
+## Setup friction encountered
 
 - ERCOT's live/recent document list for real-time SPP (`get_spp`) only keeps a rolling 9-10 days or so, which I confirmed by testing it directly since the library doesn't document this up front.
 - `get_fuel_mix()` genuinely has no historical access for ERCOT (today/yesterday only), confirmed both by calling it directly and by reading the library source. There's no workaround through `gridstatus` for this one.
