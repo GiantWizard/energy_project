@@ -30,7 +30,7 @@ df = pd.read_csv(RAW_PATH, parse_dates=["Interval Start"])
 df = df.sort_values("Interval Start").reset_index(drop=True)
 df = df[["Interval Start", "SPP"]].rename(columns={"Interval Start": "ts", "SPP": "price"})
 
-# ---- Feature engineering (shared across all three experiments) --------
+# Feature engineering (shared across all three experiments)
 df["momentum_4"] = df["price"].pct_change(4)
 df["volatility_8"] = df["price"].rolling(8).std()
 df["spread_1"] = df["price"].diff().abs()
@@ -104,7 +104,7 @@ test_1, preds_1, naive_1, imp_1, mae_1, naive_mae_1 = run_forecast(1, "Forecast:
 # Experiment 2: 1-hour-ahead forecast (4 intervals out)
 test_4, preds_4, naive_4, imp_4, mae_4, naive_mae_4 = run_forecast(4, "Forecast: 1-hour-ahead (t+4)")
 
-# ---- Experiment 3: anomaly / spike detection -----------------------------
+# Experiment 3: anomaly / spike detection
 # Question: do the Skyblock-style features (momentum, volatility, spread) flag
 # genuinely unusual intervals, using only those features (not lag prices,
 # so lag_1 can't trivially dominate as it does in the forecasting task)?
@@ -147,7 +147,7 @@ for _, row in flagged.head(10).iterrows():
         f"score={row['anomaly_score_raw']:.4f}"
     )
 
-# ---- Plots ----------------------------------------------------------------
+# Plots
 fig, axes = plt.subplots(3, 1, figsize=(12, 13))
 
 axes[0].plot(test_1["ts"], test_1["price"].shift(-1).ffill(), label="Actual", linewidth=1.0, alpha=0.4)
