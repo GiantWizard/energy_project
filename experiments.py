@@ -1,31 +1,6 @@
-# Extended experiments for the energy-markets bridge project.
-#
-# Prior finding: on a calm week (2026-06-28 to 2026-07-04), a next-15-min
-# RandomForest forecast lost to a naive random-walk baseline, and the three
-# Skyblock-analogue features (momentum_4, volatility_8, spread_1) barely
-# registered (about 8% combined feature importance vs lag_1 at 83%). The
-# only result that held up was IsolationForest anomaly detection using
-# those features alone.
-#
-# This script tests four different angles to see if a better result is
-# actually achievable:
-#   1. Exogenous data: add ERCOT system-wide load (demand level and demand
-#      momentum) as features alongside the price-based ones. Fuel-mix /
-#      renewable-penetration data was also attempted but isn't available
-#      historically through gridstatus for ERCOT; see fetch_load.py and
-#      RESULTS.md for that limitation.
-#   2. Reframe the forecasting target as next-interval price direction
-#      (up/down) instead of exact price, compared against a naive "same
-#      direction as last move" baseline.
-#   3. Pull a genuinely more volatile period. Using ERCOT's annual
-#      historical RTM archive (fetch_historical_archive.py), scanned all
-#      of 2026 year-to-date and found 2026-01-24 to 2026-01-30 as the most
-#      volatile week (max $1170.38/MWh vs the calm week's $66.13, std
-#      $105.57 vs $7.87), a real winter cold snap where prices spiked
-#      because supply couldn't keep up with demand.
-#   4. Deepen the anomaly-detection angle: check whether IsolationForest's
-#      flagged intervals on the volatile week correspond to a real price
-#      spike, and research what ERCOT event this period corresponds to.
+# Four more angles: exogenous load features, direction classification,
+# a more volatile week (2026-01-24 to 01-30, winter scarcity event), and
+# deepened anomaly detection.
 import pandas as pd
 import numpy as np
 import matplotlib
@@ -67,9 +42,7 @@ def build_features(price_df, demand_df=None):
     df["hour"] = df["ts"].dt.hour + df["ts"].dt.minute / 60.0
 
     if demand_df is not None:
-        # load is hourly; resample onto the 15-min price grid via forward-fill
-        # (each hourly load reading applies to the following interval until
-        # the next hourly reading), then add demand level and demand momentum
+        # load is hourly; forward-fill onto the 15-min price grid
         d = demand_df.set_index("ts").reindex(
             pd.date_range(demand_df["ts"].min(), df["ts"].max(), freq="15min", tz=df["ts"].dt.tz)
         ).ffill().rename_axis("ts").reset_index()

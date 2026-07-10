@@ -1,14 +1,6 @@
-# Fetches ERCOT's annual RTM settlement point price archive (report type
-# 13061, "Historical RTM Load Zone and Hub Prices") to scan a much longer
-# window than the 9-10 day rolling document list gridstatus.get_spp() draws
-# from.
-#
-# gridstatus.Ercot.get_rtm_spp(year) hits a real bug under pandas 2.3.x:
-# its internal parse_doc calls doc["HourBeginning"].astype("timedelta64[h]"),
-# which pandas 2.3 rejects (only s/ms/us/ns units are allowed now). Rather
-# than patch the installed library, this script downloads the same
-# underlying archive file and reimplements the same interval-construction
-# logic with pd.to_timedelta(..., unit="h"), which pandas 2.3 accepts.
+# Fetches ERCOT's annual RTM price archive directly instead of using
+# gridstatus.Ercot.get_rtm_spp(year), which breaks under pandas 2.3.x
+# (astype("timedelta64[h]") is no longer allowed).
 import gridstatus
 from gridstatus import utils
 import pandas as pd

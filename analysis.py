@@ -1,22 +1,4 @@
-# Forecasting and anomaly-detection experiments on the calm week of
-# ERCOT price data, run after cross-checking the original results.
-#
-# The original next-15-min RandomForest forecast did not beat a naive
-# random-walk baseline (MAE 2.232 vs 2.002), and the three Skyblock-analogue
-# features contributed only about 8% combined feature importance vs. lag_1
-# alone at 83%. This script tests two other angles on the same data: a
-# longer forecast horizon (does naive stay dominant further out?) and
-# anomaly detection (do volatility_8 / spread_1 carry signal for flagging
-# unusual intervals, a task where lag_1 isn't in the feature set at all).
-#
-# Feature to Skyblock-bazaar mapping:
-#   momentum_4:   % change over the last 4 intervals (1 hour), analogous to
-#                 Skyblock's short-horizon buy/sell price momentum signal.
-#   volatility_8: rolling std-dev of price over the last 8 intervals
-#                 (2 hours), analogous to Skyblock's rolling volatility
-#                 feature.
-#   spread_1:     absolute difference between consecutive interval prices,
-#                 analogous to Skyblock's bid/ask spread proxy.
+# Longer-horizon forecast + anomaly detection on the calm week.
 import pandas as pd
 import matplotlib
 matplotlib.use("Agg")
@@ -104,10 +86,7 @@ test_1, preds_1, naive_1, imp_1, mae_1, naive_mae_1 = run_forecast(1, "Forecast:
 # Experiment 2: 1-hour-ahead forecast (4 intervals out)
 test_4, preds_4, naive_4, imp_4, mae_4, naive_mae_4 = run_forecast(4, "Forecast: 1-hour-ahead (t+4)")
 
-# Experiment 3: anomaly / spike detection
-# Question: do the Skyblock-style features (momentum, volatility, spread) flag
-# genuinely unusual intervals, using only those features (not lag prices,
-# so lag_1 can't trivially dominate as it does in the forecasting task)?
+# Experiment 3: anomaly detection using only momentum/volatility/spread (no lag prices)
 anomaly_features = ["momentum_4", "volatility_8", "spread_1"]
 anomaly_df = df.dropna(subset=anomaly_features).reset_index(drop=True)
 
