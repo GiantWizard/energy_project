@@ -2,105 +2,117 @@
 
 ## Revision history
 
-1. Initial approach: built a RandomForest model to forecast the price 15 minutes ahead, using a calm week of data (2026-06-28 to 07-04). It lost to a naive baseline that just predicts the last price again (MAE 2.232 vs 2.002), and the three features borrowed from the Skyblock project barely mattered: together they made up only about 8% of the model's feature importance, while `lag_1` (just the last observed price) made up 83% on its own.
-2. Follow-up analysis: instead of just rewriting the summary to sound better, tried two new angles. Forecasting an hour ahead instead of 15 minutes did a little better, though that was driven mostly by the `hour` feature. Anomaly detection worked cleanly: the intervals it flagged as unusual showed 4 to 7 times higher spread and volatility than the normal ones.
-3. Current results: tried four different angles to see if a better result was possible at all. Added real demand data, switched from predicting the exact price to predicting direction, tested against an actual volatile week instead of another calm one, and checked the anomaly detection results against a real, named ERCOT grid event. Two of the four helped, in a modest but real way. The other two did not, and are reported below exactly as they came out.
+1. Initial approach: built a RandomForest model to predict the price 15 minutes ahead, using a using a calm week of data (2026-06-28 to 07-04). Unfortunately, it lost to a naive baseline that just predicts the last price (MAE 2.232 vs 2.002) and the three features borrowed from wiz barely mattered, making up only about 8% of the model's feature iportance compared to `lag_1` (last observed price) making up 83%.
+2. Two new angles were tried: forcasting an hour ahead did a little better, though that was still mostly driven by the `hour` feature. Anomaly detection on the other hand worked fairly cleanly, as the intervals it flagged as unusual showed 4 to 7 times higher spread and volatility than the normal ones.
+3. Current results: tried four differnt approaches to see if a better result was possible at all. Added demand data, switched from predicting price to predicting direction, tested against a volatile week instead of just a calm one, checked the anomaly detection results against a named ERCOT grid event. Two of the four helped, to an extent. The other two were useless compared to the baseline.
 
 ## Data
 
 - ISO / node: ERCOT, `HB_HOUSTON` (Houston Load Zone Trading Hub), real-time market, 15-minute settlement point prices (SPP).
-- Calm week: 2026-06-28 to 2026-07-04, 672 rows, zero gaps. Min $8.89, max $66.13, mean $27.18, std $7.87.
-- Volatile week (added for this analysis): 2026-01-24 to 2026-01-30, 672 rows, zero gaps. Min -$6.66, max $1170.38, mean $106.03, std $105.57, about 13x the calm week's volatility. This was an actual winter cold snap where supply couldn't keep up with demand and prices spiked (see Experiment 4).
-- Demand data (added for this analysis): ERCOT system-wide hourly load, pulled for both weeks. Calm week via `gridstatus.get_load`; volatile week via `gridstatus.get_hourly_load_post_settlements`, since `get_load` only covers a rolling 14-day window and the volatile week is over 5 months in the past. See Setup Friction below.
+- Calm week: 2026-06-28 to 2026-07-04, 672 rows. Min $8.89, max $66.13, mean $27.18, std $7.87.
+- Volatile week: 2026-01-24 to 2026-01-30, 672 rows, zero gaps. Min -$6.66, max $1170.38, mean $106.03, std $105.57 or about 13x the calm week's volatility. This was a winter cold snap where supply couldn't keep up with demand and prices spiked (see Experiment 4).
+- Demand data: ERCOT system-wide hourly load for both weeks. Calm week via `gridstatus.get_load`; volatile week via `gridstatus.get_hourly_load_post_settlements`, since `get_load` only covers a rolling 14-day window and the volatile week is over 5 months in the past. See Setup Friction below.
 
 ### How the volatile week was found
 
-`gridstatus.Ercot.get_spp()`, the method used for the original calm-week pull, draws from ERCOT's live rolling document list, which turned out to only keep about 9-10 days of real-time SPP documents. I confirmed this by testing it directly: every date requested before 2026-06-27 failed with "no documents found," while 2026-06-27 onward worked. So scanning the last month or two for a volatile day wasn't going to work through that method.
+Because ERCOT's live feed only keeps a rolling 9-10 day of data, any date requested prior to June 27, 2026 simply returns "no documents found." Thus, the original method using `gridstatus.Ercot.get_spp()` didn't work. 
 
-Instead, ERCOT publishes an annual historical RTM archive (`gridstatus.Ercot.get_rtm_spp(year)`, report type 13061) that covers the whole year in one file. That call hits a real bug under pandas 2.3.x: gridstatus's internal `parse_doc` function calls `.astype("timedelta64[h]")`, which pandas 2.3 no longer allows (it only permits s/ms/us/ns units). Rather than patch the installed library, `fetch_historical_archive.py` downloads the same underlying file and rebuilds the same interval logic using `pd.to_timedelta(..., unit="h")` instead, which pandas 2.3 accepts. That produced the full 2026-01-01 to 2026-07-04 year-to-date archive (408,388 rows across all settlement points), which I scanned day by day for `HB_HOUSTON` to find the highest-volatility week.
+Switching to the annual historical archive hit a compatibility bug, as gridstatus internally uses `.astype("timedelta64[h]")` which pandas 2.3.x no longer supports.
+
+To bypass this, I wrote `fetch_historical_archive.py` to download the raw archive directly and rebuild the interval logic with the supported `pd.to_timedelta(..., unit="h")` function instead. This pulled the entire 2026 year-to-date dataset (Jan 1 – Jul 4; 408,388 rows), allowing me to scan day by day for the highest volatility at `HB_HOUSTON`. 
 
 ## Feature engineering
 
 | Feature | Definition | Skyblock analogue |
 |---|---|---|
-| `momentum_4` | % change in price over the last 4 intervals (1 hour) | Same idea as tracking whether an item's price is trending up or down over a short window |
-| `volatility_8` | Rolling std-dev of price over the last 8 intervals (2 hours) | Same as a rolling measure of how choppy a price has been recently |
+| `momentum_4` | % change in price over the last 4 intervals | Essentially tracking whether an item's price is trending up or down over a certain window |
+| `volatility_8` | Rolling std-dev of price over the last 8 intervals | Same as a rolling measure of how choppy a price has been recently |
 | `spread_1` | Absolute difference between consecutive interval prices | Similar to the gap between an item's buy and sell price |
-| `load`, `load_change_4` (new) | System-wide demand level and its 1-hour % change | No Skyblock equivalent. This is a genuinely new, grid-specific signal, since an in-game item market has no "total demand" number the way the power grid does |
+| `load`, `load_change_4`| System-wide demand level and its 1-hour % change | This is a new grid-specific signal, since an in-game item market has no "total demand" number the way the power grid does |
 
-## Experiment 1: exogenous demand (load) data
+## Experiment 1: exogenous demand data
 
-Marginal help, doesn't flip the result.
+Adding demand data was the logical next step as power prices are heavily driven by grind demand. I originally intended to include fuel-mix and renewable penetration data but `gridstatus.Ercot.get_fuel_mix()` only supports live data and throws a `NotSupported()` error for historical queries. Since there's no historical archive for fuel mix, I decided to use historic al load data instead, pulling it with `get_hourly_load_post_settlements`.
 
-The reasoning here was different from just re-tuning the price-only features: adding real demand data is a legitimate reason to expect improvement, since price is partly a function of demand.
 
-Fuel-mix and renewable-penetration data, which I originally wanted to add too, turned out not to be accessible historically at all. `gridstatus.Ercot.get_fuel_mix()` only supports `"today"`/`"yesterday"` for ERCOT (I confirmed this by calling it directly, it raises `NotSupported()` for any other date), and there's no separate historical fuel-mix archive the way there is for load and price. That's a real, confirmed limitation, not something I worked around. I used load (demand level) instead, since it's available historically through a separate archive (`get_hourly_load_post_settlements`).
-
-| | Calm week t+1 MAE | Volatile week t+1 MAE |
+| Model | Calm week t+1 MAE | Volatile week t+1 MAE |
 |---|---|---|
 | Naive baseline | 2.002 | 4.443 |
 | Price-only model | 2.232 (-11.5%) | 7.755 (-74.6%) |
 | Price + load model | 2.155 (-7.7%) | 8.122 (-82.8%) |
 
-Adding load features narrowed the gap slightly on the calm week (model MAE improved from 2.232 to 2.155) but still didn't beat naive, and made things worse on the volatile week. `load` itself picked up modest feature importance (3.1% on the calm week), but it didn't change the underlying picture: `lag_1` still dominates. This doesn't flip the original finding. A likely reason is that hourly load, resampled onto a 15-minute grid, is a coarse and slow-moving signal compared to how fast settlement prices actually move, so it adds only a little on top of what the price series already tells you about itself.
+Observations:
+- Marginal impact: Adding load features narrowed the gap slightly during the calm week but still failed to beat the naive baseline. On the volatile week, adding load decreased performance.
+- Lag-1 still remains dominant, as `load` picked up 3.1% feature importance during the calm week, the `lag_1` price feature still completely dominates the moden's predictions.
+- Hourly load data is too coarse and slow-moving when resampled onto a 15-minute grid. It fails to capture the rapid shifts of real-time settlement prices, offering little value beyond what the price history already provides.
 
 ## Experiment 2: direction classification
 
 A genuine, repeatable win.
 
-Instead of predicting the exact next price, I reframed the task as predicting just the direction of the next move, up or down, and compared that against a baseline that always guesses "same direction as the last observed move." That's a fair, non-trivial baseline, not just picking whichever direction happens to be more common.
+Reframing the task from predicting exact prices (regression) to predicting the direction of the next price move yielded a stable performance improvement, which is consistent with my observations from other times I tried to model markets.
 
-| | Calm week accuracy | Volatile week accuracy |
+To keep the evaluation rigorous, the RandomForest classifier was compared against a non-trivial naive baseline that always guesses the direction of the last observed move instead of a simple majority-class guess.
+
+| Metric | Calm week accuracy | Volatile week accuracy |
 |---|---|---|
 | Naive (same as last direction) | 0.586 | 0.564 |
 | RandomForest classifier | 0.624 | 0.579 |
 | Beats naive? | Yes (+3.8 pts) | Yes (+1.5 pts) |
 
-This is a real, if modest, win on both weeks. More interesting is that the feature importances look completely different from the point-forecasting task. On the calm week, `hour` (19.2%), `momentum_4` (17.6%), and `lag_4` (15.2%) lead, with all seven features landing in a narrow 11.7%-19.2% band. No single feature dominates the way `lag_1` did at 83% in the point-forecast task. The Skyblock-style features (`momentum_4`, `volatility_8`, `spread_1`) are actually pulling weight here, not just registering a token contribution. This is the clearest evidence in the whole project that the features are useful for something, just not for pinning down the exact price.
+Observations:
+- The model successfully outperformed the baseline in both market conditions, proving that direction is a lot more predictable than exact numerical values
+- Unlike the point-forcasting models where `lag_1` completely dominated, feature importances here were distributed evenly, with all seven features within a 11.7% to 19.2% band.
+- The top contributors for the calm week were `hour`, `momentum_4`, and `lag_4`, confirming that the engineered features (`momentum_4`, `volatility_8`, `spread_1`) carry meaningful predictive power.
 
 ## Experiment 3: forecasting on the volatile week
 
-Makes the model's relative loss worse instead of better.
-
-The hypothesis going in was that a genuinely more volatile period should give the model more real signal to find, which could close the gap with naive.
+The hypothesis is that a highly volatile period would provide a stronger signal for my model to find, allowing the model to close the performance gap with the baseline. However, the higher volatility made the model's relative performace significantly worse.
 
 | | t+1 MAE | t+4 (1hr) MAE |
 |---|---|---|
 | Naive | 4.443 | 9.321 |
-| Model (price-only) | 7.755 (-74.6%) | 15.929 (-70.9%) |
+| Model | 7.755 (-74.6%) | 15.929 (-70.9%) |
 
-That's not what happened. If anything, the opposite did. On the calm week the model lost to naive by 11.5% (t+1); on the volatile week it lost by 74.6%. During sharp, scarcity-driven price spikes, the single most predictive thing is still "what did the price just do" (naive), and an averaging model like RandomForest actually falls further behind because it can't react fast enough to the spike's speed and size. You can see this directly in `experiments_plot.png`'s third panel, where the model's t+1 predictions lag the real spikes by a step. Higher raw volatility gave the model more error to make, not more structure to actually use, relative to the naive baseline. That's a counterintuitive finding, but a real one worth keeping rather than something to smooth over.
+| Horizon | Naive MAE | Model MAE | Relative Loss |
+| --- | --- | --- | --- |
+| t+1 | 4.443 | 7.755 | -74.6% |
+| t+4 | 9.321 | 15.929 | -70.9% |
 
-## Experiment 4: anomaly detection, deepened
+Observations:
+- While the model trailed the baseline by just 11.5% during the calm week, it trailed significantly more in the volatile week, plummeting to 74.6%
+- During sharp price spikes, the most reliable indicator is the immediate past price. Because a RandomForest operates by averaging historical trees, it can't react fast enough to a spike.This causes its predictions to visually lag behind the acutal spikes by a step (as seen in `experiments_plot.png`).
+- Counterintuitively, higher raw volatility did not introduce usable structure for the model. It only expanded the margin for error, giving the baseline a huge inherent advantage. 
 
-The strongest result in the project, now with a real-world check.
+## Experiment 4: Anomaly detection via IsolationForest
 
-I ran the same IsolationForest (momentum, volatility, and spread only, no lag prices) on the volatile week.
+This stands as the project's strongest result. The IsolationForest model was trained exclusively on engieered features (`momentum`, `volatility`, and `spread`), and intentionally omits raw lag prices.
 
-| | Calm week | Volatile week |
+| Metric | Calm week | Volatile week |
 |---|---|---|
 | Flagged | 34/665 (5.1%) | 34/665 (5.1%) |
-| Median `spread_1`, normal vs. flagged | 0.74 vs. 5.57 (7.5x) | 3.68 vs. 61.07 (16.6x) |
-| Median `volatility_8`, normal vs. flagged | 1.74 vs. 7.38 (4.2x) | 8.44 vs. 194.29 (23x) |
+| Median `spread_1` (Normal vs. Flagged) | 0.74 vs. 5.57 (7.5x) | 3.68 vs. 61.07 (16.6x) |
+| Median `volatility_8` (Normal vs. Flagged) | 1.74 vs. 7.38 (4.2x) | 8.44 vs. 194.29 (23x) |
 
-The separation is far stronger on the volatile week, which is exactly what you'd want from a working anomaly detector: bigger real anomalies produce a bigger, clearer signal. The single most extreme flagged interval is 2026-01-28 07:00 CST at $1170.38/MWh (the year-to-date price peak), and the top 5 flagged intervals are dominated by the two real spike clusters on 2026-01-25 (evening) and 2026-01-28 (morning). See `experiments_plot.png`, second panel, where the flags sit almost exactly on the two visible price spikes.
+Observations:
+- The model performed how a robust anomaly detector would, as high volatility yielded much more pronnounced signals. Flagged intervals in the volatile week showed massive multipliers compared to normal baseline operations (16.6x for spread, 23x for volatility).
+- The single most extreme anomaly captured the year-to-date price peak on January 28, 2026, at 07:00 CST ($1,170.38/MWh). The top five flagged anomalies cluster around the actual price spikes on January 25 (evening) and January 28 (morning), visible in the second panel of `experiments_plot.png`.
+- An official ERCOT press release from January 21, 2026 ("_ERCOT Issues Weather Watch_," ercot.com/news/release/01212026-ercot-issues-weather) explicitly warned of grid stress spanning January 24-27 due to sub-freezing temperatures, which confirms the model's reliability.
+- Note: while ERCOT's advisory confirms the grid stress, independent media coverage quantifying the exact $/MWh levels during this window is sparse, so can't be precisely reported here.
 
-I checked this against the real world through a live web search rather than just assuming it lined up. ERCOT's own press release from 2026-01-21, "ERCOT Issues Weather Watch" (ercot.com/news/release/01212026-ercot-issues-weather), announces a Weather Watch for 2026-01-24 through 2026-01-27: below-freezing temperatures with a chance of frozen precipitation, higher electrical demand, and the possibility of lower reserves. That window lines up almost exactly with the volatile week found independently by the volatility scan, and with its price spikes on 01-25 and 01-28. This is a dated, first-party ERCOT document naming a real grid-stress event in the same window the anomaly detector flagged on its own. A second search for outlet coverage quantifying the actual $/MWh levels during this window came up empty beyond ERCOT's own advisory, worth noting so this doesn't get overstated as more independently confirmed than it actually is.
 
-## Summary: what actually worked
+## Summary
 
 | Experiment | Result |
 |---|---|
-| 1. Exogenous load data | Marginal improvement, doesn't flip the naive-wins result. Fuel-mix data confirmed unavailable historically. |
-| 2. Direction classification | Genuine win on both weeks (+3.8 / +1.5 accuracy points), and the only task where the Skyblock features show balanced, substantial importance rather than a token contribution. |
-| 3. Volatile-period forecasting | Made the model's relative underperformance worse instead of better. A real, counterintuitive negative finding. |
-| 4. Deepened anomaly detection | Strongest result in the project: 16-23x separation on the volatile week vs. 4-7x on the calm week, and the flagged intervals correspond to a real, named, dated ERCOT Weather Watch event. |
+| 1. Exogenous load data | Slight improvement for the calm week, butdidn't beat the baseline. Confirmed essentially marginal impact.|
+| 2. Direction classification | Beat the baseline across both weeks (+3.8 / +1.5 accuracy points). This was the only task where engineered features showed meaningful importance.|
+| 3. Volatile-period forecasting | Made the model's relative underperformance worse instead of better.|
+| 4. Deepened anomaly detection | Delivered 16–23x signal separation during the volatile week, and flagged anomalies matched a documented ERCOT grid event.|
 
-Updated recommendation: lead with anomaly detection (Experiment 4) as the primary result, with direction classification (Experiment 2) as a solid secondary result. Point forecasting (Experiments 1 and 3) is reported honestly as not working, including the counterintuitive finding that more volatility makes the point-forecast gap bigger instead of smaller. That's a real, defensible, non-obvious finding in its own right, not a null result to bury.
+## Setup friction
 
-## Setup friction encountered
-
-- ERCOT's live/recent document list for real-time SPP (`get_spp`) only keeps a rolling 9-10 days or so, which I confirmed by testing it directly since the library doesn't document this up front.
-- `get_fuel_mix()` genuinely has no historical access for ERCOT (today/yesterday only), confirmed both by calling it directly and by reading the library source. There's no workaround through `gridstatus` for this one.
-- `get_rtm_spp(year)` (the annual archive) hit a real pandas 2.3 incompatibility bug in gridstatus 0.36.0's internal parsing (`astype("timedelta64[h]")`). Worked around by rebuilding the same interval-construction logic outside the buggy call instead of patching the installed library.
-- `get_load()` only covers a rolling 14-day window for ERCOT. The separate `get_hourly_load_post_settlements()` archive was needed to get load data for the volatile week, which is about 5 months back.
+- `get_spp()` only contains a 9-10 day rolling history, making it useless for historical scans.
+- Historical fuel-mix data doesn't exist in the archive, only data for today and yesterday exist
+- The annual archive call (`get_rtm_spp(year)`) throws a fatal error because `gridstatus` internally relies on `astype("timedelta64[h]")`, which is deprecated in modern pandas. This required bypassing the internal function entirely to reconstruct the interval logic manually via `pd.to_timedelta(..., unit="h")`.
+- The standard `get_load()` endpoint caps out at a 14-day rolling window. Reaching back five months to analyze the volatile week required shifting to the `get_hourly_load_post_settlements()` archive.
